@@ -3,7 +3,7 @@
 #include "rclcpp/time_source.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
 
-#include "gl_driver_udp.h"
+#include "gl_driver.h"
 
 
 using namespace std::chrono_literals;
@@ -39,7 +39,6 @@ private:
     void InitGl(void);
     void PubLidar(const Gl::framedata_t& frame_data);
 
-
 private:
     /************************** Launch variables *****************************/
     std::string gl_ip = "10.110.1.2";
@@ -58,7 +57,8 @@ private:
 
 void GlRos2DriverUdp::TimerCallback(void)
 {
-    Gl::framedata_t frame_data = gl->ReadFrameData();
+    Gl::framedata_t frame_data;
+    gl->ReadFrameData(frame_data);
     if(frame_data.distance.size()>0) PubLidar(frame_data);
 }
 

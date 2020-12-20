@@ -20,13 +20,16 @@ include_directories(
     include
 )
 
-add_library(gl_driver_udp
-    include/gl_driver_udp.cpp
+file(GLOB serial_src "include/serial/*.cc")
+add_library(serial SHARED ${serial_src})
+add_library(gl_driver
+    include/gl_driver.cpp
 )
 
 add_executable(${PROJECT_NAME}_node ${CMAKE_CURRENT_SOURCE_DIR}/src/${PROJECT_NAME}_node.cpp)
 target_link_libraries(${PROJECT_NAME}_node
-    gl_driver_udp
+    gl_driver
+    serial
 )
 ament_target_dependencies(${PROJECT_NAME}_node 
     rclcpp

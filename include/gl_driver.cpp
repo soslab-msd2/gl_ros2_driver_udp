@@ -1,5 +1,10 @@
 
-#include "gl_driver_udp.h"
+#include "gl_driver.h"
+
+#include <fcntl.h>
+#include <asm/ioctls.h>
+#include <asm/termbits.h>
+#include <sys/ioctl.h>
 
 
 #define PS1             0xC3
@@ -23,8 +28,14 @@
 #define STATE_PE        6
 #define STATE_CS        7
 
+#define COMM_SERIAL     1
+#define COMM_UDP        2
+
+
 int recv_state = STATE_INIT;
 
+uint8_t comm_type;
+serial::Serial* serial_port_;
 int sockfd_;
 struct sockaddr_in servaddr_, clientaddr_; 
 
@@ -36,16 +47,18 @@ std::vector<uint8_t> recv_packet;
 std::vector<uint8_t> recv_data;
 
 
-std::vector<uint8_t> lidar_data;
 std::vector<uint8_t> serial_num;
+std::vector<uint8_t> lidar_data;
 
 
 //////////////////////////////////////////////////////////////
 // Constructor and Deconstructor for GL Class
 //////////////////////////////////////////////////////////////
 
-Gl::Gl(std::string& gl_addr, int gl_port, int pc_port)
+Gl::Gl(std::string& gl_ip, int gl_port, int pc_port)
 {
+    comm_type = COMM_UDP;
+
     // server setting
     if ( (sockfd_=socket(AF_INET, SOCK_DGRAM, 0)) == -1 ) 
     { 
@@ -57,7 +70,7 @@ Gl::Gl(std::string& gl_addr, int gl_port, int pc_port)
 	memset(&servaddr_, 0, sizeof(servaddr_)); 
 	servaddr_.sin_family = AF_INET; 
 	servaddr_.sin_port = htons(gl_port); 
-    const char * c = gl_addr.c_str();
+    const char * c = gl_ip.c_str();
 	servaddr_.sin_addr.s_addr = inet_addr(c);
     
     memset(&clientaddr_, 0, sizeof(clientaddr_)); 
@@ -86,13 +99,40 @@ Gl::Gl(std::string& gl_addr, int gl_port, int pc_port)
     th = std::thread(&Gl::ThreadCallBack,this);
 }
 
+
+Gl::Gl(std::string& gl_serial_name, uint32_t gl_serial_baudrate)
+{
+    comm_type = COMM_SERIAL;
+
+    serial_port_ = new serial::Serial(gl_serial_name, gl_serial_baudrate, serial::Timeout::simpleTimeout(1));
+    if(serial_port_->isOpen()) std::cout << "GL Serial is opened." << std::endl;
+
+    int fd = open(gl_serial_name.c_str(), O_RDONLY);
+    struct termios2 tio;
+    ioctl(fd, TCGETS2, &tio);
+    tio.c_cflag &= ~CBAUD;
+    tio.c_cflag |= BOTHER;
+    tio.c_ispeed = gl_serial_baudrate;
+    tio.c_ospeed = gl_serial_baudrate;
+    ioctl(fd, TCSETS2, &tio);
+    close(fd);
+
+    th = std::thread(&Gl::ThreadCallBack,this);
+}
+
+
 Gl::~Gl()
 {
     SetFrameDataEnable(false);
 
-    thread_running = false;
+    if(comm_type==COMM_SERIAL)
+    {
+        serial_port_->close();
+        delete serial_port_;
+    }
+    else if(comm_type==COMM_UDP) close(sockfd_); 
 
-    close(sockfd_); 
+    thread_running = false;
     std::cout << "Socket END" << std::endl;
 }
 
@@ -144,8 +184,14 @@ void write_PS()
     for(auto& i: PS) write(i);
 }
 
+void SendPacket(std::vector<uint8_t>& send_packet)
+{
+    for(auto& i: send_packet) serial_port_->write(&i, 1);
+}
+
 void write_packet(uint8_t PI, uint8_t PL, uint8_t SM, uint8_t CAT0, uint8_t CAT1, const std::vector<uint8_t>& DTn)
 {
+    if(comm_type==COMM_SERIAL) serial_port_->flush();
     send_packet.clear();
     write_cs_clear();
 
@@ -170,7 +216,8 @@ void write_packet(uint8_t PI, uint8_t PL, uint8_t SM, uint8_t CAT0, uint8_t CAT1
 
     write(write_cs_get());
 
-    sendto(sockfd_, &send_packet[0], send_packet.size(), MSG_CONFIRM, (const struct sockaddr *) &servaddr_, sizeof(servaddr_));
+    if(comm_type==COMM_SERIAL) SendPacket(send_packet);
+    else if(comm_type==COMM_UDP) sendto(sockfd_, &send_packet[0], send_packet.size(), MSG_CONFIRM, (const struct sockaddr *) &servaddr_, sizeof(servaddr_));
 }
 
 
@@ -336,12 +383,20 @@ void Gl::ThreadCallBack(void)
 
     while(thread_running==true)
     {
-        socklen_t len = sizeof(clientaddr_);
-        int recv_len = recvfrom(sockfd_, &recv[0], recv.size(), MSG_WAITFORONE, (struct sockaddr *) &clientaddr_, &len);
-
-        for(size_t i=0; i<recv_len; i++)
+        if(comm_type==COMM_SERIAL)
         {
-            add_packet_element(recv[i]);
+            uint8_t data;
+            while( serial_port_->read(&data,1)==1 ) add_packet_element(data);
+        }
+        else if(comm_type==COMM_UDP)
+        {
+            socklen_t len = sizeof(clientaddr_);
+            size_t recv_len = recvfrom(sockfd_, &recv[0], recv.size(), MSG_WAITFORONE, (struct sockaddr *) &clientaddr_, &len);
+
+            for(size_t i=0; i<recv_len; i++)
+            {
+                add_packet_element(recv[i]);
+            }
         }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -380,16 +435,14 @@ std::string Gl::GetSerialNum(void)
     return out_str;
 }
 
-Gl::framedata_t ParsingFrameData(std::vector<uint8_t>& data)
+void ParsingFrameData(Gl::framedata_t& frame_data, std::vector<uint8_t>& data)
 {
-    Gl::framedata_t frame_data;
-
-    if(data.size()==0) return frame_data;
+    if(data.size()==0) return;
 
     uint16_t frame_data_size = data[0]&0xff;
     frame_data_size |= ((uint16_t)(data[1]&0xff))<<8;
 
-    if(data.size()<(frame_data_size*4+22)) return frame_data;
+    if(data.size()<(frame_data_size*4+22)) return;
 
     frame_data.distance.resize(frame_data_size);
     frame_data.pulse_width.resize(frame_data_size);
@@ -406,15 +459,14 @@ Gl::framedata_t ParsingFrameData(std::vector<uint8_t>& data)
         frame_data.pulse_width[i] = pulse_width;
         frame_data.angle[i] = i*180.0/(frame_data_size-1)*3.141592/180.0;
     }
-
-    return frame_data;
 }
 
-Gl::framedata_t Gl::ReadFrameData(bool filter_on)
+void Gl::ReadFrameData(Gl::framedata_t& frame_data, bool filter_on)
 {
-    Gl::framedata_t frame_data;
+    ParsingFrameData(frame_data, lidar_data);
+    if(frame_data.distance.size()==0) return;
 
-    frame_data = ParsingFrameData(lidar_data);
+    lidar_data.clear();
     if(filter_on==true)
     {
         for(int i=0; i<(int)frame_data.distance.size()-1; i++)
@@ -427,8 +479,6 @@ Gl::framedata_t Gl::ReadFrameData(bool filter_on)
             }
         }
     }
-
-    return frame_data;
 }
 
 //////////////////////////////////////////////////////////////

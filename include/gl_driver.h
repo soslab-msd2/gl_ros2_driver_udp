@@ -1,6 +1,6 @@
 
-#ifndef GLDRIVER_H
-#define GLDRIVER_H
+#ifndef GLDRIVERUDP_H
+#define GLDRIVERUDP_H
 
 #include <stdio.h> 
 #include <unistd.h> 
@@ -18,6 +18,7 @@
 #include <arpa/inet.h> 
 #include <netinet/in.h> 
 
+#include "serial/serial.h"
 
 
 class Gl
@@ -31,11 +32,12 @@ public:
 	};
 
 public:
-	Gl(std::string& gl_addr, int gl_port, int pc_port);
+	Gl(std::string& gl_ip, int gl_port, int pc_port);
+	Gl(std::string& gl_serial_name, uint32_t gl_serial_baudrate);
 	~Gl();
 
 	std::string GetSerialNum(void);
-	framedata_t ReadFrameData(bool filter_on=true);
+	void ReadFrameData(Gl::framedata_t& frame_data, bool filter_on=true);
 	void SetFrameDataEnable(uint8_t framedata_enable);
 
 private:
