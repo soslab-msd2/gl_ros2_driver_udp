@@ -32,8 +32,8 @@ public:
 	};
 
 public:
-	Gl(std::string& gl_ip, int gl_port, int pc_port);
-	Gl(std::string& gl_serial_name, uint32_t gl_serial_baudrate);
+	Gl(std::string& gl_ip, int gl_port=2000, int pc_port=3000);
+	Gl(std::string& gl_serial_name, uint32_t gl_serial_baudrate=921600);
 	~Gl();
 
 	std::string GetSerialNum(void);

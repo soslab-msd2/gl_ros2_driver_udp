@@ -72,7 +72,7 @@ Gl::Gl(std::string& gl_ip, int gl_port, int pc_port)
 	servaddr_.sin_port = htons(gl_port); 
     const char * c = gl_ip.c_str();
 	servaddr_.sin_addr.s_addr = inet_addr(c);
-    
+
     memset(&clientaddr_, 0, sizeof(clientaddr_)); 
 	clientaddr_.sin_family = AF_INET; 
 	clientaddr_.sin_port = htons(pc_port); 
@@ -391,9 +391,9 @@ void Gl::ThreadCallBack(void)
         else if(comm_type==COMM_UDP)
         {
             socklen_t len = sizeof(clientaddr_);
-            size_t recv_len = recvfrom(sockfd_, &recv[0], recv.size(), MSG_WAITFORONE, (struct sockaddr *) &clientaddr_, &len);
+            int recv_len = recvfrom(sockfd_, &recv[0], recv.size(), MSG_WAITFORONE, (struct sockaddr *) &clientaddr_, &len);
 
-            for(size_t i=0; i<recv_len; i++)
+            for(int i=0; i<recv_len; i++)
             {
                 add_packet_element(recv[i]);
             }
@@ -422,7 +422,7 @@ std::string Gl::GetSerialNum(void)
     {
         write_packet(PI, PL, SM, CAT0, CAT1, DTn);
         
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
         if(serial_num.size()>0)
         {
@@ -496,4 +496,3 @@ void Gl::SetFrameDataEnable(uint8_t framedata_enable)
 
     write_packet(PI, PL, SM, CAT0, CAT1, DTn);
 }
-
