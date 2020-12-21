@@ -9,6 +9,10 @@ $ cd $(ROS2 workspace)
 $ colcon build --symlink-install
 ```
 - Set local IP as `10.110.1.3`
+- Run GL-3 publisher node
+```
+$ ros2 launch gl_ros2_driver_udp gl_ros2_driver_udp.py
+```
 - Run GL-3 publisher node with RViz
 ```
 $ ros2 launch gl_ros2_driver_udp view_gl_ros2_driver_udp.py
