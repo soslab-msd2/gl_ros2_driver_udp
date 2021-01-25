@@ -17,6 +17,7 @@ def generate_launch_description():
             {'pc_port': 3000},
             {'frame_id': 'laser'},
             {'pub_topicname_lidar': 'scan'},
+            {'angle_offset': 0.0},
         ],
     )
 
