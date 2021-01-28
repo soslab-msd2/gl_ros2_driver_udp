@@ -102,7 +102,7 @@ void GlRos2DriverUdp::PubLidar(const Gl::framedata_t& frame_data)
         scan_msg.angle_min = frame_data.angle[0] + angle_offset;
         scan_msg.angle_max = frame_data.angle[num_lidar_data-1] + angle_offset;
         scan_msg.angle_increment = (scan_msg.angle_max - scan_msg.angle_min) / (double)(num_lidar_data-1);
-        scan_msg.range_min = 0.1;
+        scan_msg.range_min = 0.001;
         scan_msg.range_max = 30.0;
         scan_msg.ranges.resize(num_lidar_data);
 	    scan_msg.intensities.resize(num_lidar_data);
