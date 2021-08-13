@@ -16,11 +16,15 @@ include_directories(
     include
 )
 
+
 file(GLOB serial_src "include/serial/*.cc")
+if (NOT TARGET dl_driver)
 add_library(serial SHARED ${serial_src})
-add_library(gl_driver
-    include/gl_driver.cpp
-)
+endif()
+if (NOT TARGET gl_driver)
+add_library(gl_driver SHARED include/gl_driver.cpp)
+endif()
+
 
 add_executable(${PROJECT_NAME}_node ${CMAKE_CURRENT_SOURCE_DIR}/src/${PROJECT_NAME}_node.cpp)
 target_link_libraries(${PROJECT_NAME}_node
