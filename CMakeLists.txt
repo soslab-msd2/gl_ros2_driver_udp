@@ -18,7 +18,7 @@ include_directories(
 
 
 file(GLOB serial_src "include/serial/*.cc")
-if (NOT TARGET dl_driver)
+if (NOT TARGET serial)
 add_library(serial SHARED ${serial_src})
 endif()
 if (NOT TARGET gl_driver)
