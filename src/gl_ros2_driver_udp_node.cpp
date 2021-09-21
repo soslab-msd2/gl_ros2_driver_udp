@@ -9,23 +9,24 @@
 using namespace std::chrono_literals;
 
 
-class GlRos2DriverUdp : public rclcpp::Node
+class GLRos2DriverUdp : public rclcpp::Node
 {
 public:
-    GlRos2DriverUdp() : Node("gl_ros2_driver_udp_node")
+    GLRos2DriverUdp() : Node("gl_ros2_driver_udp_node")
     {
         DeclareParam();
         GetParam();
         
         laser_pub = create_publisher<sensor_msgs::msg::LaserScan>(pub_topicname_lidar, 10);
-        timer = create_wall_timer(12ms, std::bind(&GlRos2DriverUdp::TimerCallback, this));
+        timer = create_wall_timer(12ms, std::bind(&GLRos2DriverUdp::TimerCallback, this));
 
-        InitGl();
+        InitGL();
     }
 
-    ~GlRos2DriverUdp()
+    ~GLRos2DriverUdp()
     {
         gl->SetFrameDataEnable(false);
+        delete gl;
     }
 
 
@@ -34,10 +35,10 @@ private:
     void DeclareParam(void);
     void GetParam(void);
 
-    void TimerCallback(void);
+    void InitGL(void);
+    void PubLidar(const GL::framedata_t& frame_data);
 
-    void InitGl(void);
-    void PubLidar(const Gl::framedata_t& frame_data);
+    void TimerCallback(void);
 
 private:
     /************************** Launch variables *****************************/
@@ -50,20 +51,13 @@ private:
     
 private:
     /************************** Other variables *****************************/
-    Gl* gl;
+    GL* gl;
     
     rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr laser_pub;
     rclcpp::TimerBase::SharedPtr timer;
 };
 
-void GlRos2DriverUdp::TimerCallback(void)
-{
-    Gl::framedata_t frame_data;
-    gl->ReadFrameData(frame_data);
-    if(frame_data.distance.size()>0) PubLidar(frame_data);
-}
-
-void GlRos2DriverUdp::DeclareParam(void)
+void GLRos2DriverUdp::DeclareParam(void)
 {
     declare_parameter("gl_ip", gl_ip);
     declare_parameter("gl_port", gl_port);
@@ -73,7 +67,7 @@ void GlRos2DriverUdp::DeclareParam(void)
     declare_parameter("angle_offset", angle_offset);
 }
 
-void GlRos2DriverUdp::GetParam(void)
+void GLRos2DriverUdp::GetParam(void)
 {
     gl_ip = get_parameter("gl_ip").as_string();
     gl_port = get_parameter("gl_port").as_int();
@@ -83,14 +77,14 @@ void GlRos2DriverUdp::GetParam(void)
     angle_offset = get_parameter("angle_offset").as_double();
 }
 
-void GlRos2DriverUdp::InitGl(void)
+void GLRos2DriverUdp::InitGL(void)
 {
-    gl = new Gl(gl_ip, gl_port, pc_port);
+    gl = new GL(gl_ip, gl_port, pc_port);
     std::cout << "Serial Num : " << gl->GetSerialNum() << std::endl;
     gl->SetFrameDataEnable(true);
 }
 
-void GlRos2DriverUdp::PubLidar(const Gl::framedata_t& frame_data) 
+void GLRos2DriverUdp::PubLidar(const GL::framedata_t& frame_data) 
 {
     int num_lidar_data = frame_data.distance.size();
     
@@ -116,10 +110,17 @@ void GlRos2DriverUdp::PubLidar(const Gl::framedata_t& frame_data)
     }
 }
 
+void GLRos2DriverUdp::TimerCallback(void)
+{
+    GL::framedata_t frame_data;
+    gl->ReadFrameData(frame_data);
+    if(frame_data.distance.size()>0) PubLidar(frame_data);
+}
+
 int main(int argc, char * argv[])
 {
     rclcpp::init(argc, argv);
-    rclcpp::spin(std::make_shared<GlRos2DriverUdp>());
+    rclcpp::spin(std::make_shared<GLRos2DriverUdp>());
     rclcpp::shutdown();
    
     return 0;

@@ -4,11 +4,11 @@
 * Installation
 ```
 $ cd ${ROS2 workspace}/src
-$ git clone https://github.com/soslab-project/gl_ros2_driver_udp.git
+$ git clone --recurse-submodules https://github.com/soslab-project/gl_ros2_driver_udp.git
 $ cd $(ROS2 workspace)
 $ colcon build --symlink-install
 ```
-- Set local IP as `10.110.1.3`
+- Set local PC IP as `10.110.1.3`
 - Run GL-3 publisher node
 ```
 $ ros2 launch gl_ros2_driver_udp gl_ros2_driver_udp.py
