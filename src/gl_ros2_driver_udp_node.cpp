@@ -36,7 +36,7 @@ private:
     void GetParam(void);
 
     void InitGL(void);
-    void PubLidar(const GL::framedata_t& frame_data);
+    void PubLidar(const gldriver::GL::framedata_t& frame_data);
 
     void TimerCallback(void);
 
@@ -112,7 +112,7 @@ void GLRos2DriverUdp::PubLidar(const gldriver::GL::framedata_t& frame_data)
 
 void GLRos2DriverUdp::TimerCallback(void)
 {
-    GL::framedata_t frame_data;
+    gldriver::GL::framedata_t frame_data;
     gl->ReadFrameData(frame_data);
     if(frame_data.distance.size()>0) PubLidar(frame_data);
 }
