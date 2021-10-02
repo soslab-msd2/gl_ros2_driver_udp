@@ -42,16 +42,16 @@ private:
 
 private:
     /************************** Launch variables *****************************/
-    std::string gl_ip = "10.110.1.2";
-    int gl_port = 2000;
-    int pc_port = 3000;
-    std::string frame_id = "laser";
-    std::string pub_topicname_lidar = "scan";
-    double angle_offset = 0.0;
+    std::string gl_ip;
+    int gl_port;
+    int pc_port;
+    std::string frame_id;
+    std::string pub_topicname_lidar;
+    double angle_offset;
     
 private:
     /************************** Other variables *****************************/
-    GL* gl;
+    gldriver::GL* gl;
     
     rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr laser_pub;
     rclcpp::TimerBase::SharedPtr timer;
@@ -79,12 +79,12 @@ void GLRos2DriverUdp::GetParam(void)
 
 void GLRos2DriverUdp::InitGL(void)
 {
-    gl = new GL(gl_ip, gl_port, pc_port);
+    gl = new gldriver::GL(gl_ip, gl_port, pc_port);
     std::cout << "Serial Num : " << gl->GetSerialNum() << std::endl;
     gl->SetFrameDataEnable(true);
 }
 
-void GLRos2DriverUdp::PubLidar(const GL::framedata_t& frame_data) 
+void GLRos2DriverUdp::PubLidar(const gldriver::GL::framedata_t& frame_data) 
 {
     int num_lidar_data = frame_data.distance.size();
     
@@ -93,8 +93,8 @@ void GLRos2DriverUdp::PubLidar(const GL::framedata_t& frame_data)
         sensor_msgs::msg::LaserScan scan_msg;
         scan_msg.header.stamp = rclcpp::Clock().now();
         scan_msg.header.frame_id = frame_id;
-        scan_msg.angle_min = frame_data.angle[0] + angle_offset;
-        scan_msg.angle_max = frame_data.angle[num_lidar_data-1] + angle_offset;
+        scan_msg.angle_min = frame_data.angle[0] + angle_offset*3.141592/180.0;
+        scan_msg.angle_max = frame_data.angle[num_lidar_data-1] + angle_offset*3.141592/180.0;
         scan_msg.angle_increment = (scan_msg.angle_max - scan_msg.angle_min) / (double)(num_lidar_data-1);
         scan_msg.range_min = 0.001;
         scan_msg.range_max = 30.0;
